@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lipari-fe-config
+data:
+  # Placeholder per eventuali config future (es. URL di un servizio downstream).
+  # Per ora il frontend è puro statico Nginx, quindi la ConfigMap è vuota di chiavi reali.
+  log-level: info

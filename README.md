@@ -1,59 +1,105 @@
-# Bootcamp Docker & DevOps — progetto di partenza
+# Code Blueprint G2 — Percorso FE
 
-Questo è il repository su cui lavori per tutto il bootcamp. Contiene due applicazioni campione, una per percorso: ne scegli una e lavori solo su quella.
+Estensione del blueprint G1 con pipeline CI/CD su GitHub Actions, push immagine su GHCR, e manifest Kubernetes.
 
-| Cartella | Percorso | Cosa contiene |
-|---|---|---|
-| `percorso-be/` | Backend | API REST Node.js + Express con due endpoint, `/healthz` e `/accounts` |
-| `percorso-fe/` | Frontend | Pagina Vite + React che legge la lista dei conti da `/api/accounts` |
-| `docs/setup.md` | Comune | Verifiche dell'ambiente e problemi frequenti del Giorno 0 |
+## Pre-requisiti
 
-Al Giorno 0 l'app del tuo percorso gira a mano, senza Docker. Dal Giorno 1 la metti in container e la affianchi ai servizi che le servono; al Giorno 2 costruisci la pipeline che la verifica e ne pubblica l'immagine su GHCR.
+- Tutto il blueprint G1 (incluso, vedi struttura sotto)
+- Account GitHub con un Personal Access Token (`write:packages`)
+- Repository GitHub creato per pushare il blueprint
 
-## Mettilo sul tuo GitHub
+## Setup veloce
 
-Il progetto deve vivere su un repository tuo: al Giorno 2 è lì che girano i workflow GitHub Actions ed è lì che viene pubblicata l'immagine.
+1. **Crea un repo GitHub vuoto** (es. `bootcamp-docker-devops`)
+2. **Inizializza il repo** dal contenuto di questo zip:
+   ```bash
+   cd <questa-cartella>
+   git init
+   git add .
+   git commit -m "G2: blueprint completo con CI/CD"
+   git branch -M main
+   git remote add origin https://github.com/<your-user>/bootcamp-docker-devops.git
+   git push -u origin main
+   ```
+3. **Verifica i workflow** nella tab `Actions` del repo GitHub
+4. **Verifica l'immagine pushata** nella tab `Packages` del repo
 
-```bash
-cd bootcamp-docker-devops
-git init -b main
-git add .
-git commit -m "G0: setup ambiente locale"
+## Struttura
 
-# Su github.com: New repository, nome bootcamp-docker-devops, vuoto
-# (niente README, .gitignore o licenza: li hai già qui)
-git remote add origin https://github.com/<tuo-utente>/bootcamp-docker-devops.git
-git push -u origin main
+```
+g02_fe/
+├── docker-compose.yml
+├── README.md
+├── .gitignore
+├── .github/
+│   ├── workflows/
+│   │   ├── ci.yml        # CI: build statica FE + lint Dockerfile
+│   │   └── docker.yml    # Build & push immagine FE su GHCR
+│   └── dependabot.yml
+├── docs/
+│   └── architecture-decision-001.md
+├── k8s/
+│   ├── deployment.yaml   # Deployment Nginx con probes leggere
+│   ├── service.yaml      # Service ClusterIP
+│   └── configmap.yaml
+└── percorso-fe/
+    ├── Dockerfile
+    ├── nginx.conf
+    ├── .dockerignore
+    ├── package.json
+    ├── package-lock.json
+    ├── vite.config.js
+    ├── index.html
+    ├── mocks/
+    │   └── db.json
+    └── src/
+        ├── main.jsx
+        └── App.jsx
 ```
 
-Quando git chiede la password, incolla il tuo Personal Access Token: la password dell'account GitHub non viene accettata.
-
-## Smoke test del Giorno 0
-
-Percorso BE:
+## Smoke test E2E (Giorno 2)
 
 ```bash
-cd percorso-be
-npm ci
-npm start
-# in un altro terminale:
-curl http://localhost:3000/healthz
-# atteso: {"status":"ok","timestamp":"..."}
+# 1. Modifica banale al frontend
+sed -i 's/Lipari Accounts/Lipari Accounts v2/' percorso-fe/src/App.jsx
+
+# 2. Commit e push
+git add . && git commit -m "feat: update FE title"
+git push origin main
+
+# 3. Verifica del workflow Docker
+gh run watch --exit-status
+
+# 4. SHA dell'ultimo commit
+SHA=$(git rev-parse --short HEAD)
+
+# 5. Pull dell'immagine appena pushata
+docker pull ghcr.io/<your-user>/bootcamp-docker-devops-fe:$SHA
+
+# 6. Run del container
+docker run --rm -d --name test-fe -p 8081:80 ghcr.io/<your-user>/bootcamp-docker-devops-fe:$SHA
+
+# 7. Smoke test browser
+# Apri http://localhost:8081 — deve mostrare "Lipari Accounts v2"
+
+# 8. Cleanup
+docker stop test-fe
 ```
 
-Percorso FE:
+## Cosa imparare leggendo questo blueprint
 
-```bash
-cd percorso-fe
-npm ci
-npm run dev
-# apri http://localhost:5173 nel browser
-```
+- **`.github/workflows/ci.yml`**: la CI per un FE statico è leggera (build + lint del Dockerfile). Il "test" è il `vite build` stesso: se compila, l'output è valido.
+- **`.github/workflows/docker.yml`**: stesso pattern del BE — build & push GHCR con metadata-action, cache `type=gha,mode=max,scope=fe`.
+- **`scope=fe`** nella cache: separa la cache del FE da quella del BE per evitare interferenze tra immagini diverse nel monorepo.
+- **`k8s/deployment.yaml`**: 2 replicas (HA basico per Nginx), probes molto leggere (`initialDelaySeconds: 3` per readiness — Nginx parte istantaneamente).
+- **`docs/architecture-decision-001.md`**: ADR sul perché si è scelto "build statica + Nginx" rispetto a Next.js SSR.
 
-I dettagli di ciascun percorso sono nel `README.md` della sua cartella.
+## Cosa NON c'è (volutamente)
 
-## Due regole che valgono per tutto il bootcamp
+- **Niente kubectl apply**: il manifest K8s è "modello da leggere".
+- **Niente Ingress / TLS / cert-manager**: per esporre fuori dal cluster servirebbe un Ingress Controller — argomento per un corso K8s dedicato.
+- **Niente CDN davanti a Nginx**: in produzione vera, davanti a Nginx ci sarebbe CloudFront/Cloudflare/Fastly per cache geografica.
 
-Ogni giornata si chiude con un commit `GN: <argomento>` (`G0: setup ambiente locale`, `G1: ...`, `G2: ...`): la cronologia git fa parte di quello che consegni.
+## Avvia il project work
 
-Le tue note di setup vanno in `setup-notes.md`, nella radice del progetto. Il `.gitignore` lo esclude, quindi resta sul tuo PC e non finisce su GitHub.
+Procedi al `project_work_esercizi_studente.md`, sezione "GIORNO 2", per gli esercizi 🟢 CORE.
