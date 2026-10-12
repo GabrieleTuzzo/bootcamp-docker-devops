@@ -1,4 +1,3 @@
-// percorso-fe/src/App.jsx
 import { useEffect, useState } from 'react';
 
 export default function App() {
@@ -7,18 +6,27 @@ export default function App() {
 
   useEffect(() => {
     fetch('/api/accounts')
-      .then(r => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then(setAccounts)
-      .catch(e => setError(e.message));
+      .catch((e) => setError(e.message));
   }, []);
 
   return (
-    <main>
+    <main style={{ fontFamily: 'system-ui', padding: '2rem', maxWidth: 720 }}>
       <h1>Lipari Accounts</h1>
-      {error && <p style={{ color: 'crimson' }}>Errore: {error}</p>}
+      {error && (
+        <p style={{ color: 'crimson' }}>
+          Errore: <strong>{error}</strong>
+        </p>
+      )}
       <ul>
-        {accounts.map(a => (
-          <li key={a.id}>{a.iban} — €{a.balance}</li>
+        {accounts.map((a) => (
+          <li key={a.id}>
+            <code>{a.iban}</code> — €{a.balance}
+          </li>
         ))}
       </ul>
     </main>

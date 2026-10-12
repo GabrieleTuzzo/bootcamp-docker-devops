@@ -1,5 +1,3 @@
-# percorso-fe/.dockerignore
-
 node_modules
 .git
 .gitignore
