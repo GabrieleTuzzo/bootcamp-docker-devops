@@ -1,6 +1,6 @@
 # percorso-fe/Dockerfile
 # Stage 1: build con Node
-FROM node:20.11.1-alpine3.19 AS builder
+FROM node:23.3.0-alpine3.19 AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
