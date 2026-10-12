@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-fe:
+    name: Build FE (smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: percorso-fe/package-lock.json
+
+      - name: Install FE deps
+        working-directory: percorso-fe
+        run: npm ci
+
+      - name: Build FE
+        working-directory: percorso-fe
+        run: npm run build
+
+  lint-dockerfile:
+    name: Lint Dockerfile (Hadolint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: percorso-fe/Dockerfile
+        continue-on-error: true
